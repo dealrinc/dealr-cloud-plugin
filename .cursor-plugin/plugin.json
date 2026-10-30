@@ -1,0 +1,14 @@
+{
+  "name": "dealr-cloud",
+  "version": "1.0.0",
+  "description": "Look up dealership records and accounting reports from your Dealr.cloud account.",
+  "author": {
+    "name": "Dealr, Inc."
+  },
+  "homepage": "https://dealr.cloud",
+  "repository": "https://github.com/dealrinc/dealr-cloud-plugin",
+  "keywords": ["dealership", "inventory", "sales", "repair-orders", "accounting", "mcp"],
+  "logo": "assets/logo.svg",
+  "skills": "./skills/",
+  "mcpServers": "./mcp.json"
+}
