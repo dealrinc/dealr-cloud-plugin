@@ -20,7 +20,7 @@ class BundleTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name).resolve()
         for name in ("plugin-source.json", "README.md", "LICENSE", ".claude-plugin", ".cursor-plugin",
-                     ".mcp.json", "mcp.json", "skills", "assets", "docs"):
+                     ".mcp.json", "mcp.json", "skills", "assets", "docs", "exports"):
             source = REPOSITORY / name
             if source.is_dir():
                 shutil.copytree(source, self.root / name)
@@ -103,20 +103,30 @@ class BundleTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Symlink"):
             plugin.check(plugin.source())
 
-    def test_chatgpt_export_is_isolated_and_declares_oauth(self):
+    def test_chatgpt_export_preserves_existing_identity_connection_and_review(self):
         data = plugin.source()
+        baseline = json.loads((self.root / data["openai"]["baseline"]).read_text())
         before = (self.root / "mcp.json").read_bytes()
         with contextlib.redirect_stdout(io.StringIO()):
             plugin.build(data, "chatgpt")
-        archive = self.root / "dist/chatgpt" / f"{data['name']}-{data['version']}.zip"
+        archive = self.root / "dist/chatgpt" / f"{baseline['manifest']['name']}-{data['version']}.zip"
         with zipfile.ZipFile(archive) as bundle:
             names = set(bundle.namelist())
             manifest = json.loads(bundle.read(".codex-plugin/plugin.json"))
-            servers = json.loads(bundle.read(manifest["mcpServers"].removeprefix("./")))["mcpServers"]
-            auth = servers["dealr"]["extensions"]["com.openai"]["auth"]
-            self.assertEqual(auth["type"], "oauth")
-            self.assertEqual(auth["client"], {"mode": "dcr"})
-            self.assertEqual(servers["dealr"]["url"], data["servers"]["dealr"]["url"])
+            connection = json.loads(bundle.read(manifest["mcpServers"].removeprefix("./")))
+            self.assertEqual(connection, baseline["mcp"])
+            self.assertEqual(manifest["name"], baseline["manifest"]["name"])
+            self.assertEqual(manifest["version"], data["version"])
+            self.assertEqual(manifest["interface"], baseline["manifest"]["interface"])
+            self.assertEqual(manifest["author"], baseline["manifest"]["author"])
+            ext = manifest["extensions"]["com.openai"]
+            previous = baseline["manifest"]["extensions"]["com.openai"]
+            self.assertEqual(ext["review"], previous["review"])
+            self.assertEqual(ext["publication"]["countries"], previous["publication"]["countries"])
+            self.assertEqual(ext["publication"]["release_notes"], data["openai"]["updateNotes"])
+            self.assertEqual(bundle.read("assets/icon.png"), (self.root / data["openai"]["asset"]).read_bytes())
+            self.assertIn("skills/accounting-fundamentals/references/guide.md", names)
+            self.assertIn("skills/bank-reconciliation/references/guide.md", names)
             self.assertIn(manifest["interface"]["logo"].removeprefix("./"), names)
             self.assertIn(manifest["extensions"]["com.openai"]["onboardingSkill"].removeprefix("./"), names)
             self.assertNotIn("mcp.json", names)
@@ -126,12 +136,37 @@ class BundleTests(unittest.TestCase):
         self.assertEqual(before, (self.root / "mcp.json").read_bytes())
 
     def test_chatgpt_export_rejects_invalid_listing_and_missing_onboarding(self):
+        path = self.root / plugin.source()["openai"]["baseline"]
+        original = path.read_text()
         for change in [{"shortDescription": "x" * 31}, {"onboardingSkill": "./README.md"}]:
             with self.subTest(change=change):
                 data = plugin.source()
-                data["openai"].update(change)
+                baseline = json.loads(original)
+                if "shortDescription" in change:
+                    baseline["manifest"]["interface"].update(change)
+                else:
+                    baseline["manifest"]["extensions"]["com.openai"].update(change)
+                path.write_text(json.dumps(baseline))
                 with self.assertRaises(ValueError):
                     plugin.chatgpt_metadata(data)
+
+    def test_chatgpt_export_rejects_endpoint_drift(self):
+        data = plugin.source()
+        data["servers"]["dealr"]["url"] = "https://other.example.com/mcp"
+        with self.assertRaisesRegex(ValueError, "endpoints differ"):
+            plugin.chatgpt_metadata(data)
+
+    def test_chatgpt_export_rejects_unchanged_version_and_private_credentials(self):
+        data = plugin.source()
+        path = self.root / data["openai"]["baseline"]
+        baseline = json.loads(path.read_text())
+        data["version"] = baseline["manifest"]["version"]
+        with self.assertRaisesRegex(ValueError, "newer"):
+            plugin.chatgpt_metadata(data)
+        baseline["manifest"]["extensions"]["com.openai"]["review"]["test_credentials"] = "synthetic-private-value"
+        path.write_text(json.dumps(baseline))
+        with self.assertRaisesRegex(ValueError, "Private credentials"):
+            plugin.chatgpt_metadata(plugin.source())
 
 
 if __name__ == "__main__":

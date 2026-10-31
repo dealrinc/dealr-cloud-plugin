@@ -7,6 +7,8 @@ description: Look up dealership records through the connected Dealr.cloud MCP se
 
 Use the connected Dealr MCP tools; host prefixes may vary. If the connection is missing, direct the user to connect `https://manage.dealr.cloud/mcp` with OAuth. Never ask for a password or token in chat.
 
+For a new connection, summarize the readable areas returned by `get_context` in two or three sentences, then offer three example questions that fit that user's access. Include returned Dealr record links when presenting records, without inventing URLs.
+
 1. Call `get_context` first to learn permitted object types, rooftops, contact sharing, and the dealership timezone. Do not guess an organization, rooftop, or user identity.
 2. Call `describe_object` before constructing filters for an unfamiliar object type. Use the returned fields, operators, enums, and related sections rather than internal database names.
 3. Resolve names, phone numbers, VINs, stock numbers, and other supported identifiers through `resolve` or `search` before calling `get`. Disambiguate multiple matches. Printed repair order numbers may differ from record IDs.

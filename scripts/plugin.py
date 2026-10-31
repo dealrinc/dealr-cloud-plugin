@@ -142,64 +142,102 @@ def check(data):
 
 def chatgpt_metadata(data):
     settings = data["openai"]
-    expected = {"shortDescription", "longDescription", "category", "capabilities", "defaultPrompt",
-                "brandColor", "brandColorDark", "onboardingSkill", "oauthScopes"}
-    require(set(settings) == expected, "Missing or unknown OpenAI export settings")
-    for value, limit, field in [(data["displayName"], 30, "displayName"),
-                                (data["author"]["name"], 80, "developerName"),
-                                (settings["shortDescription"], 30, "shortDescription"),
-                                (settings["longDescription"], 4000, "longDescription")]:
+    require(set(settings) == {"baseline", "asset", "updateNotes"}, "Missing or unknown OpenAI export settings")
+    baseline = json.loads(local_path(settings["baseline"]).read_text())
+    require(set(baseline) == {"manifest", "mcp"}, "Invalid ChatGPT baseline envelope")
+    manifest, mcp = baseline["manifest"], baseline["mcp"]
+
+    def inspect(value):
+        if isinstance(value, dict):
+            require(not set(value).intersection({"clientSecret", "test_credentials", "reviewer_instructions", "password"}),
+                    "Private credentials or reviewer access must not be packaged")
+            for child in value.values():
+                inspect(child)
+        elif isinstance(value, list):
+            for child in value:
+                inspect(child)
+    inspect(baseline)
+    require(re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", manifest["name"]), "Invalid existing ChatGPT package identity")
+    require(manifest["skills"] == "./skills/" and manifest["mcpServers"] == "./.mcp.json",
+            "Unsupported ChatGPT component paths")
+    require(not set(manifest).intersection({"apps", "hooks"}), "App references and hooks are not supported by this export")
+    interface = manifest["interface"]
+    for field, limit in [("displayName", 30), ("shortDescription", 30), ("longDescription", 4000), ("developerName", 80)]:
+        value = interface[field]
         require(isinstance(value, str) and 0 < len(value) <= limit, f"OpenAI {field}: invalid length")
-    require(len(data["servers"]) == 1, "ChatGPT export supports exactly one remote MCP server")
-    for color in (settings["brandColor"], settings["brandColorDark"]):
-        require(re.fullmatch(r"#[0-9a-fA-F]{6}", color), "Invalid OpenAI brand color")
-    prompts = settings["defaultPrompt"]
-    require(isinstance(prompts, list) and len(prompts) <= 3 and len(set(prompts)) == len(prompts)
-            and all(isinstance(p, str) and 0 < len(p) <= 128 for p in prompts), "Invalid starter prompts")
-    capabilities = settings["capabilities"]
-    require(isinstance(capabilities, list) and len(capabilities) <= 20
-            and all(isinstance(c, str) and 0 < len(c) <= 120 for c in capabilities), "Invalid capabilities")
-    scopes = settings["oauthScopes"]
-    require(isinstance(scopes, list) and scopes and all(isinstance(s, str) and s.strip() for s in scopes),
-            "OAuth scopes are required")
-    require(isinstance(settings["category"], str) and settings["category"].strip(), "OpenAI category is required")
-    onboarding = local_path(settings["onboardingSkill"])
+    for field in ["websiteURL", "supportURL", "privacyPolicyURL", "termsOfServiceURL"]:
+        https_url(interface[field], f"OpenAI {field}")
+    for field in ["brandColor", "brandColorDark"]:
+        require(re.fullmatch(r"#[0-9a-fA-F]{6}", interface[field]), f"Invalid OpenAI {field}")
+    prompts = interface["defaultPrompt"]
+    require(isinstance(prompts, list) and len(prompts) <= 3 and all(isinstance(p, str) and 0 < len(p) <= 128 for p in prompts),
+            "Invalid OpenAI starter prompts")
+    require(len(mcp["mcpServers"]) == len(data["servers"]) == 1, "ChatGPT export supports exactly one MCP server")
+    for server in mcp["mcpServers"].values():
+        require(set(server) == {"url"}, "Baseline connection must remain URL-only; change authentication explicitly")
+        https_url(server["url"], "ChatGPT MCP endpoint")
+        require(server["url"] == next(iter(data["servers"].values()))["url"], "ChatGPT and shared MCP endpoints differ")
+    extensions = manifest["extensions"]["com.openai"]
+    require(not set(extensions).intersection({"apps", "hooks"}), "OpenAI app references and hooks are not supported")
+    onboarding = local_path(extensions["onboardingSkill"])
     require(onboarding in bundle_files() and onboarding.name == "SKILL.md" and ROOT / "skills" in onboarding.parents,
             "OpenAI onboarding skill must be a bundled skill")
-    interface = {key: settings[key] for key in ("shortDescription", "longDescription", "category", "capabilities",
-                                               "defaultPrompt", "brandColor", "brandColorDark")}
-    interface.update({"displayName": data["displayName"], "developerName": data["author"]["name"],
-                      "websiteURL": data["homepage"], "supportURL": data["supportUrl"],
-                      "privacyPolicyURL": data["privacyPolicyUrl"], "termsOfServiceURL": data["termsOfServiceUrl"],
-                      "logo": data["icon"], "composerIcon": data["icon"]})
-    manifest = {key: data[key] for key in CORE}
-    manifest.update({"skills": "./skills/", "mcpServers": "./.mcp.json", "interface": interface,
-                     "extensions": {"com.openai": {"onboardingSkill": settings["onboardingSkill"]}}})
-    servers = {name: {"url": server["url"], "extensions": {"com.openai": {"auth": {
-        "type": "oauth", "client": {"mode": "dcr"}, "baseScopes": scopes}}}}
-               for name, server in data["servers"].items()}
-    return {".codex-plugin/plugin.json": text(manifest), ".mcp.json": text({"mcpServers": servers})}
+    review = extensions["review"]
+    cases = review["test_cases"]
+    require(len(cases["positive"]) == 5 and len(cases["negative"]) == 3, "Retain five positive and three negative cases")
+    for case in cases["positive"]:
+        require(all(isinstance(case.get(k), str) and case[k].strip() for k in
+                    ["description", "prompt", "tools_triggered", "expected_behavior"]), "Incomplete positive review case")
+    for case in cases["negative"]:
+        require(all(isinstance(case.get(k), str) and case[k].strip() for k in ["description", "prompt"]),
+                "Incomplete negative review case")
+    https_url(review["demo_recording_url"], "Review demo URL")
+    require(settings["updateNotes"].strip(), "ChatGPT update notes are required")
+    require(tuple(map(int, data["version"].split("."))) > tuple(map(int, manifest["version"].split("."))),
+            "The exported version must be newer than the baseline")
+    manifest["version"] = data["version"]
+    extensions["publication"]["release_notes"] = settings["updateNotes"]
+    return {".codex-plugin/plugin.json": text(manifest), ".mcp.json": text(mcp)}
+
+
+def chatgpt_assets(data, manifest):
+    image = local_path(data["openai"]["asset"]).read_bytes()
+    require(image[:8] == bytes.fromhex("89504e470d0a1a0a"), "ChatGPT asset must be a PNG")
+    width, height = struct.unpack(">II", image[16:24])
+    require(width == height and 48 <= width <= 4096, "ChatGPT icon must be square and between 48 and 4096 pixels")
+    output = {}
+    for key in ("logo", "logoDark", "composerIcon", "composerIconDark"):
+        path = manifest["interface"].get(key)
+        if path:
+            name = PurePosixPath(path)
+            require(path.startswith("./assets/") and ".." not in name.parts and name.suffix == ".png",
+                    f"Invalid OpenAI asset path: {path}")
+            output[name.as_posix()] = image
+    require("logo" in manifest["interface"] and "composerIcon" in manifest["interface"], "ChatGPT icons are required")
+    return output
 
 
 def build(data, target="shared"):
     check(data)
     replacements = chatgpt_metadata(data) if target == "chatgpt" else {}
+    exported = json.loads(replacements[".codex-plugin/plugin.json"]) if replacements else data
     output = ROOT / "dist" / target
     output.mkdir(parents=True, exist_ok=True)
-    archive = output / f"{data['name']}-{data['version']}.zip"
+    archive = output / f"{exported['name']}-{exported['version']}.zip"
     contents = {path.relative_to(ROOT).as_posix(): path.read_bytes() for path in bundle_files()}
     if target == "chatgpt":
         contents = {name: content for name, content in contents.items()
-                    if name == "LICENSE" or name.startswith(("skills/", "assets/"))}
+                    if name == "LICENSE" or name.startswith("skills/")}
+        contents.update(chatgpt_assets(data, exported))
         contents["README.md"] = (
-            f"# {data['displayName']}\n\n{data['openai']['longDescription']}\n\n"
+            f"# {exported['interface']['displayName']}\n\n{exported['interface']['longDescription']}\n\n"
             "This is an OpenAI/Codex-compatible export with shared Dealr skills, branding, and a remote OAuth connection. "
             "Import it as an MCP-enabled plugin. Update the existing Dealr.cloud plugin identity where applicable. "
             "Local packaging checks do not prove OpenAI importer acceptance or an authenticated connection. "
             "Complete domain verification, OAuth and identity checks, skill/tool scans, and reviewer testing before submission. "
             "Reviewer credentials must be entered privately in the portal, never in this package.\n\n"
-            f"Privacy policy: {data['privacyPolicyUrl']}\n\nTerms: {data['termsOfServiceUrl']}\n\n"
-            f"Support: {data['supportUrl']}\n\nSee LICENSE for proprietary rights.\n"
+            f"Privacy policy: {exported['interface']['privacyPolicyURL']}\n\nTerms: {exported['interface']['termsOfServiceURL']}\n\n"
+            f"Support: {exported['interface']['supportURL']}\n\nSee LICENSE for proprietary rights.\n"
         ).encode()
         contents.update({name: content.encode() for name, content in replacements.items()})
     with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as bundle:

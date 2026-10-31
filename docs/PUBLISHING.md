@@ -22,7 +22,7 @@ Claude chat and Cowork discover `.mcp.json`; Cursor discovers `mcp.json`. Both a
 | Claude remote server discovery | `.mcp.json` |
 | Cursor remote server discovery | `mcp.json` |
 
-The identity `dealr-cloud` stays stable across hosts. The marketplace name is also `dealr-cloud`, so Claude Code installs `dealr-cloud@dealr-cloud`.
+The Claude/Cursor identity is `dealr-cloud`. The marketplace name is also `dealr-cloud`, so Claude Code installs `dealr-cloud@dealr-cloud`. ChatGPT retains its assigned package name from the existing export rather than replacing it with that marketplace identity.
 
 ## Claude public directory
 
@@ -59,18 +59,22 @@ The package has native Claude and Cursor manifests. This does not prove Grok Bot
 
 ## ChatGPT and Codex
 
-Run `python3 scripts/plugin.py build --target chatgpt`. The independent ZIP in `dist/chatgpt/` contains `.codex-plugin/plugin.json`, `.mcp.json`, the shared skills and assets, the proprietary license, and export-specific documentation. It does not carry Claude/Cursor manifests, marketplace indexes, app references, or hooks. Configuration remains URL-only with OAuth client registration through DCR; no secrets are packaged.
+Run `python3 scripts/plugin.py build --target chatgpt`. The ZIP in `dist/chatgpt/` is named `app-6ab344f9b2e48191ac932d73268eda65-<version>.zip`, matching the existing package identity. It contains `.codex-plugin/plugin.json`, `.mcp.json`, shared skills and references, the original ChatGPT icons, the proprietary license, and export-specific documentation. It does not carry Claude/Cursor manifests, marketplace indexes, app references, or hooks.
 
-Edit the `openai` section of `plugin-source.json` for subtitle, long description, category, capabilities, starter prompts, branding colors, onboarding skill, and OAuth scopes. The exporter maps shared website, support, privacy, and terms URLs to OpenAI's field names. It rejects subtitles over 30 characters, invalid onboarding paths, and multiple servers; the current public flow connects one server per plugin.
+The `openai` section of `plugin-source.json` points to `exports/chatgpt/baseline.json`, the imported public metadata from the supplied 1.0.0 package, and the original PNG asset. That baseline is authoritative for the ChatGPT name, author, description, license label, interface fields, review materials, country targeting, onboarding, and MCP configuration. Shared metadata no longer overwrites approved ChatGPT listing fields. Edit the baseline deliberately for a listing change, and replace it with the latest published package metadata when preparing a subsequent update.
+
+The baseline `.mcp.json` remains URL-only, with the capitalized `Dealr` server key. Authentication and client-registration behavior remain with the existing connector flow; the exporter does not add DCR declarations, scopes, or a new client registration. It rejects endpoint drift between the baseline and the shared server. Change authentication explicitly and validate it in the portal if needed.
+
+Set the shared `version` higher than the baseline version and write `openai.updateNotes` for the current update. Only that version and publication note change automatically; review cases and the supplied video URL are retained without claiming they were rerun. Reviewer access must stay outside the baseline and archive.
 
 The public Agent Plugins MCP schema currently rejects the per-server OAuth extension described in OpenAI's documentation. This target therefore uses OpenAI's documented Codex compatibility layout, without claiming portable-schema conformance. It does not add a portable root manifest that could change Cursor's format selection.
 
 Before submission:
 
 1. Import this export in OpenAI's plugin portal as an MCP-enabled package. For the published Dealr.cloud plugin, upload a new version to the existing identity instead of creating a duplicate. A skills-only submission is not appropriate for these connected workflows.
-2. Verify imported metadata and saved OAuth settings, including DCR, scopes, and endpoint discovery. Confirm production support for OpenAI's current UserInfo and verified-email/workspace-domain requirements; a successful package build does not establish this.
+2. Verify imported metadata and the existing connector's saved OAuth settings and endpoint discovery. Confirm production support for OpenAI's current UserInfo and verified-email/workspace-domain requirements; a successful package build does not establish this.
 3. Complete any domain challenge without overwriting an existing plugin's challenge token. Use a permitted parent origin or ask support if there is a conflict.
-4. Test skills and tools with a dedicated sample account, resolve scans, and prepare exactly five positive and three negative review cases plus an accessible video walkthrough. Do not invent test results or recording URLs in package metadata.
+4. Rerun the five positive and three negative cases retained from the baseline with the reviewer account, and confirm the existing video is still accessible and representative. Update the cases or recording deliberately if behavior changed. Do not invent current test results.
 5. Enter reviewer credentials privately in the portal. Complete policy attestations and submit only when authorized. An upload, scan, review approval, and publication are distinct steps.
 
 Native OpenAI importer validation and authenticated runtime testing remain outstanding. This tooling produces a format-ready export, not a guarantee of public approval.
@@ -82,6 +86,7 @@ References: https://developers.openai.com/plugins/build/plugins and https://deve
 1. Create a separate repository. Replace source metadata, publisher, repository, docs/support/privacy/terms links, and MCP endpoints. The generator rejects missing or unknown source keys.
 2. Choose a permanent unique name and start at `1.0.0`. Use HTTPS and explicit HTTP transport for a hosted OAuth server. Keep credentials out of configuration.
 3. Replace branding and both image variants with the app's own square, opaque assets. Update the README and license to reflect its actual ownership and terms.
+   For ChatGPT, replace the baseline manifest, server key, icons, publisher fields, review materials, and targeting as well. Do not reuse Dealr's assigned app identity or demo URL for a different app.
 4. Rewrite skills against the real server schemas. Remove Dealr-specific prerequisites, examples, and concepts. This package's skills are not generic templates.
 5. Run `sync`, validators, archive build, and authenticated tests in each target host. Inspect the extracted archive.
 6. Submit under the app publisher's organization with accurate data handling and private reviewer access. The build does not provision OAuth clients, deploy a server, accept terms, or submit listings.

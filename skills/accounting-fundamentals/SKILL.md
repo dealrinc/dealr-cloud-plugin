@@ -5,6 +5,8 @@ description: Explain Dealr.cloud financial statements, journal entries, debits, 
 
 # Explain dealership accounting
 
+For a dealer learning bookkeeping concepts, read [the accounting guide](references/guide.md). It covers the six account types, payment-versus-expense distinctions, and common questions. Use `search_docs` for current Dealr UI procedures and configured account mappings.
+
 Call `get_context` before accounting tools. Establish the report date or period and the intended rooftop's books. Several rooftops may share books; a location filter and a books selection are not interchangeable. Follow each live tool's schema and permission notices.
 
 Choose the read tool that answers the question:

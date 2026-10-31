@@ -1,0 +1,124 @@
+{
+  "manifest": {
+    "name": "app-6ab344f9b2e48191ac932d73268eda65",
+    "version": "1.0.0",
+    "description": "Look up inventory, customers, deals, leads, repair orders, parts, and accounting records from your Dealr.cloud dealership account.",
+    "author": {
+      "name": "Dealr.cloud",
+      "email": "support@dealr.cloud",
+      "url": "https://dealr.cloud"
+    },
+    "homepage": "https://dealr.cloud",
+    "license": "Proprietary",
+    "keywords": [
+      "dealership",
+      "dms",
+      "automotive",
+      "inventory",
+      "deals",
+      "accounting"
+    ],
+    "skills": "./skills/",
+    "mcpServers": "./.mcp.json",
+    "interface": {
+      "displayName": "Dealr.cloud",
+      "shortDescription": "Look up dealership records",
+      "longDescription": "Use this plugin to answer questions about your auto dealership's operations from your Dealr.cloud account, such as what is in stock, how deals are progressing, which repair orders are open, and what your accounting reports show. Dealr.cloud is the dealership management system independent auto dealers use to run inventory, sales, service, and accounting.\n\nYou can:\n- Search inventory, customers, deals, leads, communications, repair orders, part orders, and parts inventory\n- Find a customer or vehicle by name, phone, email, VIN, stock number, or plate\n- View deal, repair order, lead, and customer details\n- View balance sheet, profit and loss, trial balance, journal entries, control balances, and AR/AP aging\n\nSign in with your Dealr.cloud account. Results include only the rooftops and records your Dealr.cloud user has permission to view. A dealership admin must turn on Integrations > Connect AI tools for your user. Customer contact details appear only if your dealership turns them on under Settings > AI Tools.\n\nThe plugin only reads data. It cannot create, change, or delete records, send messages, or post accounting entries. Loan and title records are not included.",
+      "developerName": "Dealr.cloud",
+      "category": "Business & Operations",
+      "capabilities": [
+        "Search dealership records",
+        "Find customers and vehicles",
+        "View deal and repair order details",
+        "View accounting reports",
+        "View AR/AP aging"
+      ],
+      "websiteURL": "https://dealr.cloud",
+      "supportURL": "https://dealr.cloud/support",
+      "privacyPolicyURL": "https://dealr.com/policies/privacy-policy/standalone/",
+      "termsOfServiceURL": "https://dealr.com/policies/website-terms-of-use/standalone/",
+      "defaultPrompt": [
+        "Which of my deals are missing a title?",
+        "What's our AR aging as of today?",
+        "Show vehicles in stock more than 90 days"
+      ],
+      "brandColor": "#215264",
+      "brandColorDark": "#00B6CD",
+      "composerIcon": "./assets/icon.png",
+      "logo": "./assets/logo.png",
+      "composerIconDark": "./assets/icon.png",
+      "logoDark": "./assets/logo.png"
+    },
+    "extensions": {
+      "com.openai": {
+        "onboardingSkill": "./skills/get-started/SKILL.md",
+        "review": {
+          "test_cases": {
+            "positive": [
+              {
+                "description": "Find aged inventory",
+                "prompt": "Which vehicles have been in stock more than 90 days?",
+                "tools_triggered": "get_context, search",
+                "expected_behavior": "Calls get_context, then search with object_type inventory and a days-in-stock filter; lists matching vehicles with stock number, VIN, YMM, days in stock, and Dealr record links."
+              },
+              {
+                "description": "Look up a customer by phone",
+                "prompt": "Find the customer with phone number 555-0142 and show their deals.",
+                "tools_triggered": "resolve, get",
+                "expected_behavior": "Calls resolve with kind customer, then get on the customer with include deals; shows the customer and their deals with links."
+              },
+              {
+                "description": "Deals missing a title",
+                "prompt": "Which of my deals are missing a title?",
+                "tools_triggered": "search",
+                "expected_behavior": "Calls search with object_type deal and a title-status filter (mine: true for first-person phrasing); returns the deals with deal number, customer, vehicle, and links, and reports the total."
+              },
+              {
+                "description": "AR aging",
+                "prompt": "What's our accounts receivable aging as of today?",
+                "tools_triggered": "get_aging_report",
+                "expected_behavior": "Calls get_aging_report with type receivable; returns 0-30/31-60/61-90/90+ bucket totals and the largest balances by control."
+              },
+              {
+                "description": "Open repair orders",
+                "prompt": "Show open repair orders older than 7 days.",
+                "tools_triggered": "search",
+                "expected_behavior": "Calls search with object_type repair_order, an open-status filter, and a date filter; lists ROs with RO number, customer, vehicle, age, and links, using 'repair order' terminology."
+              }
+            ],
+            "negative": [
+              {
+                "description": "Writes are out of scope; the plugin is read-only and should explain that the change must be made in Dealr.",
+                "prompt": "Mark deal 10452 as funded."
+              },
+              {
+                "description": "Sending messages is out of scope; the plugin cannot send texts or emails.",
+                "prompt": "Text all my open leads a price drop alert."
+              },
+              {
+                "description": "Data from other dealerships is never available; access is limited to the user's own rooftops.",
+                "prompt": "Show me the inventory at a competing dealership across town."
+              }
+            ]
+          },
+          "commerce": false,
+          "commerce_description": "This plugin does not sell products or process payments.",
+          "demo_recording_url": "https://manage.dealr.cloud/video/view/0bf965e2-6859-43fb-8289-e5398ba93ebb"
+        },
+        "publication": {
+          "countries": [
+            "US"
+          ],
+          "release_notes": "Initial release: read-only search, lookup, reporting, and accounting over your Dealr dealership data."
+        }
+      }
+    }
+  },
+  "mcp": {
+    "mcpServers": {
+      "Dealr": {
+        "url": "https://manage.dealr.cloud/mcp"
+      }
+    }
+  }
+}
