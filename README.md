@@ -1,8 +1,8 @@
 # Dealr.cloud
 
-<img src="assets/logo.svg" width="128" height="128" alt="Dealr.cloud logo on a dark teal background">
+![Dealr.cloud logo](assets/logo.png)
 
-**Look up dealership records.** Connect Cursor and compatible plugin hosts to your Dealr.cloud account through the hosted Model Context Protocol (MCP) server.
+**Look up dealership records.** Connect Claude chat, Cowork, Claude Code, and Cursor to your Dealr.cloud account through the hosted Model Context Protocol (MCP) server.
 
 Dealr.cloud is the dealership management system independent auto dealers use to run inventory, sales, service, and accounting.
 
@@ -16,11 +16,30 @@ Dealr.cloud is the dealership management system independent auto dealers use to 
 
 Search inventory, customers, deals, leads, communications, repair orders, part orders, and parts inventory. Find customers and vehicles by supported identifiers, view record details, and read financial statements, journal entries, control balances, and AR/AP aging when your permissions allow it.
 
-## Connect
+## Install in Claude chat or Cowork
 
-1. Install the Dealr.cloud plugin from **Customize** once it is approved. For local testing, copy this repository's contents into `~/.cursor/plugins/local/dealr-cloud/`, then restart Cursor or run **Developer: Reload Window**. Confirm the plugin appears in **Customize**. Enterprise admins may need to allow local plugin imports.
-2. Connect the `dealr` MCP server and complete the OAuth sign-in using your existing Dealr.cloud account. Review the requested access before approving it.
-3. Ask a question about your dealership. The assistant discovers your permitted rooftops and available data before querying records.
+Until the public directory listing is approved, build the upload ZIP with `python3 scripts/plugin.py build`. Open **Customize > Plugins > Add > Upload plugin** and select the versioned ZIP in `dist/`. Alternatively, choose **Add marketplace**, enter https://github.com/dealrinc/dealr-cloud-plugin, and install `dealr-cloud`.
+
+Open the plugin's **Connectors** tab, connect Dealr, and complete OAuth using your existing Dealr.cloud account. On Team and Enterprise, an Owner adds the connector for the organization before members connect their own accounts. Organization policies may restrict installation. Installing a plugin does not complete OAuth or grant additional Dealr permissions.
+
+## Install in Claude Code
+
+```text
+/plugin marketplace add dealrinc/dealr-cloud-plugin
+/plugin install dealr-cloud@dealr-cloud
+```
+
+Open `/mcp` to authenticate Dealr. The skills are available as `/dealr-cloud:get-started`, `/dealr-cloud:accounting-fundamentals`, and `/dealr-cloud:bank-reconciliation`.
+
+For local development, start `claude --plugin-dir /absolute/path/to/dealr-cloud-plugin`.
+
+## Install in Cursor
+
+Once approved, install from **Customize**. For local testing, copy this repository into `~/.cursor/plugins/local/dealr-cloud/`, restart Cursor or run **Developer: Reload Window**, and confirm all three skills and Dealr's MCP server appear in Customize. Enterprise admins may need to allow local plugin imports. Symlinks pointing outside the local plugin folder are not supported.
+
+Teams can import this repository from **Dashboard > Plugins & MCPs > Team Marketplaces > Add Marketplace > Import from Repo**. Each person must connect Dealr using their own OAuth account.
+
+## Connection requirements
 
 An active Dealr.cloud account and dealership access to AI tools are required. A dealership admin must enable **Integrations > Connect AI tools** for your user. Customer contact details appear only when the dealership enables them under **Settings > AI Tools**.
 
@@ -40,13 +59,13 @@ No API key, shared password, local server, or package installation is required f
 | `accounting-fundamentals` | Explain financial statements, debits, credits, and balances using retrieved evidence. |
 | `bank-reconciliation` | Investigate reconciliation differences using read-only accounting evidence. |
 
-## Access and privacy
+## Privacy Policy
 
 Results include only the rooftops and records your Dealr.cloud user has permission to view. Contact-field sharing and record permissions are enforced by Dealr.cloud. Missing permissions are not an invitation to switch accounts or bypass access controls.
 
 The record lookup and accounting tools described here read data; they do not edit dealership records, send messages, or post journal entries. Loan and title records are not included in the record lookup catalog. Server capabilities can evolve independently of this package; use the live tool descriptions and request-specific authorization for any additional capabilities a host exposes.
 
-This repository contains plugin metadata, instructions, and brand assets. It contains no dealership records, authentication tokens, or backend implementation. Your AI host processes information returned by the connection under that host's own policies. You can revoke the connection from Dealr.cloud's connected-app settings.
+This repository contains plugin metadata, instructions, development tooling, and brand assets. The installed bundle declares no hooks, local processes, or telemetry collectors. It contains no dealership records, authentication tokens, or backend implementation. Your AI host processes information returned by the connection under that host's own policies. The hosted service's collection, retention, and sharing practices are covered by [Dealr's privacy policy](https://dealr.com/policies/privacy-policy/standalone/). You can revoke the connection from Dealr.cloud's connected-app settings.
 
 ## Verify the connection
 
@@ -66,13 +85,27 @@ Never put reviewer credentials, real customer examples, or exported dealership d
 - **Contact details are missing:** ask an admin to review the dealership's AI Tools contact-sharing setting.
 - **A report differs from the app:** compare dates, timezone, and which rooftop's books were selected.
 
-## Publishing and updates
+## Validate, package, and publish
 
-Submit this public repository at [Cursor's publisher page](https://cursor.com/marketplace/publish). The manifest is `.cursor-plugin/plugin.json`; MCP configuration is `mcp.json`. The square logo includes an opaque background and is committed at `assets/logo.svg`.
+Use Python 3.9+ for the dependency-free build tooling and Claude Code 2.1.311+ for native Claude validation:
 
-A 512 × 512 PNG copy is available at `assets/logo.png` for submission forms that require a direct image URL.
+```bash
+python3 scripts/plugin.py check
+claude plugin validate .claude-plugin/plugin.json --strict --profile directory
+claude plugin validate .claude-plugin/marketplace.json --strict
+claude plugin validate skills --strict
+python3 scripts/plugin.py build
+```
 
-For package updates, edit the files, increment the manifest's semantic version, validate the package, and follow the marketplace's current review/update process. Do not assume pushing a commit immediately updates an approved listing.
+The build creates a versioned upload ZIP and `SHA256SUMS` in `dist/`. The ZIP has both native manifests, both MCP configuration filenames, shared skills, branding, license, and documentation. It excludes Git history, development tooling, CI files, and root environment files. Rebuilding identical files with the same toolchain produces the same checksum.
+
+Edit `plugin-source.json` for shared identity, version, listing links, and server endpoints, then run `python3 scripts/plugin.py sync` to regenerate both hosts' metadata. Shared skills and assets remain ordinary files. CI detects stale generated files and validates both the source plugin and the extracted upload ZIP.
+
+See [Testing](docs/TESTING.md) for authenticated checks and [Publishing](docs/PUBLISHING.md) for Claude, Cursor, Grok, version updates, and adapting the bundle for a new app. Package validation does not establish marketplace approval or an authenticated connection. Grok Bot ingestion still needs its own in-app test.
+
+## License
+
+This package is proprietary; see [LICENSE](LICENSE). Dealr, Inc. retains the plugin and brand rights. A public repository does not grant an open-source license. Hosted service access remains governed by your existing Dealr agreement and terms of use.
 
 ## Links
 

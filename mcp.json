@@ -1,6 +1,7 @@
 {
   "mcpServers": {
     "dealr": {
+      "type": "http",
       "url": "https://manage.dealr.cloud/mcp"
     }
   }

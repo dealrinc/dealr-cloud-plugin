@@ -1,0 +1,48 @@
+name: Validate plugin bundle
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - name: Check generated metadata and build upload bundle
+        run: |
+          python3 -m unittest discover -s tests -v
+          python3 scripts/plugin.py build
+      - name: Install pinned Claude validator
+        run: npm install --global @anthropic-ai/claude-code@2.1.311
+      - name: Validate Claude plugin and marketplaces
+        run: |
+          claude plugin validate .claude-plugin/plugin.json --strict --profile directory
+          claude plugin validate .claude-plugin/marketplace.json --strict
+          claude plugin validate skills --strict
+      - name: Verify upload archive with Claude
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          archives = list(Path('dist').glob('*.zip'))
+          assert len(archives) == 1, 'Expected exactly one plugin archive'
+          with ZipFile(archives[0]) as archive:
+              archive.extractall('/tmp/dealr-plugin-upload')
+          PY
+          claude plugin validate /tmp/dealr-plugin-upload --strict --profile directory
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: plugin-bundle
+          path: |
+            dist/*.zip
+            dist/SHA256SUMS
+          if-no-files-found: error

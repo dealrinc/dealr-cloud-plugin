@@ -1,0 +1,20 @@
+{
+  "name": "dealr-cloud",
+  "displayName": "Dealr.cloud",
+  "version": "1.1.0",
+  "description": "Look up dealership records and accounting reports from your Dealr.cloud account.",
+  "author": { "name": "Dealr, Inc.", "url": "https://dealr.cloud" },
+  "homepage": "https://dealr.cloud",
+  "repository": "https://github.com/dealrinc/dealr-cloud-plugin",
+  "license": "LicenseRef-Dealr-Proprietary",
+  "keywords": ["dealership", "inventory", "sales", "repair-orders", "accounting", "mcp"],
+  "icon": "./assets/logo.png",
+  "documentationUrl": "https://dealr.cloud/docs",
+  "supportUrl": "https://dealr.cloud/contact",
+  "privacyPolicyUrl": "https://dealr.com/policies/privacy-policy/standalone/",
+  "termsOfServiceUrl": "https://dealr.com/policies/website-terms-of-use/standalone/",
+  "marketplaceName": "dealr-cloud",
+  "servers": {
+    "dealr": { "type": "http", "url": "https://manage.dealr.cloud/mcp" }
+  }
+}
