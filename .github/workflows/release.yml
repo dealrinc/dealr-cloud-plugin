@@ -1,0 +1,61 @@
+name: Publish versioned bundles
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: plugin-version-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.version.outputs.publish }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - name: Require a new package version on main
+        id: version
+        run: |
+          python3 scripts/version_gate.py
+  validate:
+    needs: guard
+    if: needs.guard.outputs.publish == 'true'
+    uses: ./.github/workflows/validate.yml
+    permissions:
+      contents: read
+  publish:
+    needs: [guard, validate]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: plugin-bundle
+          path: dist
+      - name: Prepare verified assets and platform handoff
+        env:
+          VERSION_TAG: ${{ needs.guard.outputs.tag }}
+        run: python3 scripts/prepare_delivery.py --tag "$VERSION_TAG" --commit "$(git rev-parse HEAD)"
+      - name: Create GitHub release without changing existing versions
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION_TAG: ${{ needs.guard.outputs.tag }}
+        run: |
+          if gh release view "$VERSION_TAG" >/dev/null 2>&1; then
+            printf '%s\n' 'This version already exists; refusing to overwrite its published assets.'
+            exit 1
+          fi
+          gh release create "$VERSION_TAG" delivery/*.zip delivery/SHA256SUMS delivery/manifest.json \
+            --draft --target "$(git rev-parse HEAD)" --title "Dealr.cloud $VERSION_TAG" --notes-file delivery/NOTES.md
+          gh release edit "$VERSION_TAG" --draft=false

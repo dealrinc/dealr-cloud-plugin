@@ -5,6 +5,8 @@ description: Investigate a Dealr.cloud bank reconciliation difference using read
 
 # Investigate a reconciliation difference
 
+Read [the reconciliation guide](references/guide.md) when investigating a difference, clearing failure, prior-period change, or access problem. It preserves Dealr-specific diagnostic details; use `search_docs` for the current UI workflow.
+
 Establish the account, statement ending date and balance, and whether this is the first reconciliation. Ask whether the problem is a nonzero difference or a particular transaction that will not clear. Do not request a full bank statement when a date, balance, and specific disputed transactions suffice.
 
 Call `get_context` first, then use available accounting read tools to inspect the intended rooftop's books. Use `search_journal_entries` for posted transactions and `get_financial_statement` for relevant balances. Follow live schemas for date ranges, account identifiers, reconciled-status filters, units, and pagination.

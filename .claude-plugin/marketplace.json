@@ -1,0 +1,16 @@
+{
+  "name": "dealr-cloud",
+  "owner": {
+    "name": "Dealr, Inc."
+  },
+  "metadata": {
+    "description": "Look up dealership records and accounting reports from your Dealr.cloud account."
+  },
+  "plugins": [
+    {
+      "name": "dealr-cloud",
+      "source": "./",
+      "description": "Look up dealership records and accounting reports from your Dealr.cloud account."
+    }
+  ]
+}
