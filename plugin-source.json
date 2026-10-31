@@ -14,6 +14,17 @@
   "privacyPolicyUrl": "https://dealr.com/policies/privacy-policy/standalone/",
   "termsOfServiceUrl": "https://dealr.com/policies/website-terms-of-use/standalone/",
   "marketplaceName": "dealr-cloud",
+  "openai": {
+    "shortDescription": "Look up dealership records",
+    "longDescription": "Search inventory, customers, deals, leads, communications, repair orders, and parts from your Dealr.cloud account. View accounting reports and AR/AP aging within your existing dealership permissions.",
+    "category": "Productivity",
+    "capabilities": ["Search dealership records", "View accounting reports", "View AR/AP aging"],
+    "defaultPrompt": ["Show vehicles in stock more than 90 days.", "Which repair orders are open?", "What is our AR aging as of today?"],
+    "brandColor": "#2D5261",
+    "brandColorDark": "#00B6CD",
+    "onboardingSkill": "./skills/get-started/SKILL.md",
+    "oauthScopes": ["dealr"]
+  },
   "servers": {
     "dealr": { "type": "http", "url": "https://manage.dealr.cloud/mcp" }
   }

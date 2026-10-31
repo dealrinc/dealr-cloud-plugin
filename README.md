@@ -95,9 +95,12 @@ claude plugin validate .claude-plugin/plugin.json --strict --profile directory
 claude plugin validate .claude-plugin/marketplace.json --strict
 claude plugin validate skills --strict
 python3 scripts/plugin.py build
+python3 scripts/plugin.py build --target chatgpt
 ```
 
-The build creates a versioned upload ZIP and `SHA256SUMS` in `dist/`. The ZIP has both native manifests, both MCP configuration filenames, shared skills, branding, license, and documentation. It excludes Git history, development tooling, CI files, and root environment files. Rebuilding identical files with the same toolchain produces the same checksum.
+The default build creates a versioned ZIP and `SHA256SUMS` in `dist/shared/`. The ZIP has both native manifests, both MCP configuration filenames, shared skills, branding, license, and documentation. It excludes Git history, development tooling, CI files, and root environment files. Rebuilding identical files with the same toolchain produces the same checksum.
+
+The ChatGPT export is separate, in `dist/chatgpt/`. It uses the documented OpenAI/Codex compatibility manifest with listing metadata, onboarding, and a remote OAuth/DCR declaration. It reuses the skills and assets without changing Claude or Cursor metadata. Package checks do not prove OpenAI importer acceptance; see the [ChatGPT submission requirements](docs/PUBLISHING.md#chatgpt-and-codex).
 
 Edit `plugin-source.json` for shared identity, version, listing links, and server endpoints, then run `python3 scripts/plugin.py sync` to regenerate both hosts' metadata. Shared skills and assets remain ordinary files. CI detects stale generated files and validates both the source plugin and the extracted upload ZIP.
 

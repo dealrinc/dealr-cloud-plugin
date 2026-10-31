@@ -46,6 +46,31 @@ class BundleTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "only type and url"):
             plugin.source()
 
+    def test_endpoint_rejects_credentials_queries_and_invalid_hosts(self):
+        original = json.loads((self.root / "plugin-source.json").read_text())
+        for url in ["https://user:password@example.com/mcp", "https://user@example.com/mcp",
+                    "https://example.com/mcp?token=secret", "https://example.com/mcp#secret",
+                    "https://", "http://example.com/mcp", "https://example.com:invalid/mcp"]:
+            with self.subTest(url=url):
+                data = json.loads(json.dumps(original))
+                data["servers"]["dealr"]["url"] = url
+                (self.root / "plugin-source.json").write_text(json.dumps(data))
+                with self.assertRaises(ValueError):
+                    plugin.source()
+
+    def test_symlinked_skill_directory_fails_before_archiving(self):
+        shutil.move(self.root / "skills/get-started", self.root / "skill-backup")
+        (self.root / "skills/get-started").symlink_to(self.root / "skill-backup", target_is_directory=True)
+        with self.assertRaisesRegex(ValueError, "Symlink"):
+            plugin.build(plugin.source())
+        self.assertFalse((self.root / "dist").exists())
+
+    def test_symlinked_bundle_root_is_rejected(self):
+        shutil.move(self.root / "skills", self.root / "skills-backup")
+        (self.root / "skills").symlink_to(self.root / "skills-backup", target_is_directory=True)
+        with self.assertRaisesRegex(ValueError, "Symlink"):
+            plugin.build(plugin.source())
+
     def test_missing_asset_fails_check(self):
         (self.root / "assets/logo.png").unlink()
         with self.assertRaisesRegex(ValueError, "Missing"):
@@ -58,7 +83,7 @@ class BundleTests(unittest.TestCase):
         data = plugin.source()
         with contextlib.redirect_stdout(io.StringIO()):
             plugin.build(data)
-            archive = self.root / "dist" / f"{data['name']}-{data['version']}.zip"
+            archive = self.root / "dist/shared" / f"{data['name']}-{data['version']}.zip"
             first = archive.read_bytes()
             plugin.build(data)
         self.assertEqual(first, archive.read_bytes())
@@ -77,6 +102,36 @@ class BundleTests(unittest.TestCase):
         target.symlink_to(self.root / "README.md")
         with self.assertRaisesRegex(ValueError, "Symlink"):
             plugin.check(plugin.source())
+
+    def test_chatgpt_export_is_isolated_and_declares_oauth(self):
+        data = plugin.source()
+        before = (self.root / "mcp.json").read_bytes()
+        with contextlib.redirect_stdout(io.StringIO()):
+            plugin.build(data, "chatgpt")
+        archive = self.root / "dist/chatgpt" / f"{data['name']}-{data['version']}.zip"
+        with zipfile.ZipFile(archive) as bundle:
+            names = set(bundle.namelist())
+            manifest = json.loads(bundle.read(".codex-plugin/plugin.json"))
+            servers = json.loads(bundle.read(manifest["mcpServers"].removeprefix("./")))["mcpServers"]
+            auth = servers["dealr"]["extensions"]["com.openai"]["auth"]
+            self.assertEqual(auth["type"], "oauth")
+            self.assertEqual(auth["client"], {"mode": "dcr"})
+            self.assertEqual(servers["dealr"]["url"], data["servers"]["dealr"]["url"])
+            self.assertIn(manifest["interface"]["logo"].removeprefix("./"), names)
+            self.assertIn(manifest["extensions"]["com.openai"]["onboardingSkill"].removeprefix("./"), names)
+            self.assertNotIn("mcp.json", names)
+            self.assertNotIn(".claude-plugin/plugin.json", names)
+            self.assertNotIn(".cursor-plugin/plugin.json", names)
+            self.assertFalse(any(name.startswith("docs/") for name in names))
+        self.assertEqual(before, (self.root / "mcp.json").read_bytes())
+
+    def test_chatgpt_export_rejects_invalid_listing_and_missing_onboarding(self):
+        for change in [{"shortDescription": "x" * 31}, {"onboardingSkill": "./README.md"}]:
+            with self.subTest(change=change):
+                data = plugin.source()
+                data["openai"].update(change)
+                with self.assertRaises(ValueError):
+                    plugin.chatgpt_metadata(data)
 
 
 if __name__ == "__main__":

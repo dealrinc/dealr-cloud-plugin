@@ -12,11 +12,14 @@ claude plugin validate .claude-plugin/plugin.json --strict --profile directory
 claude plugin validate .claude-plugin/marketplace.json --strict
 claude plugin validate skills --strict
 python3 scripts/plugin.py build
+python3 scripts/plugin.py build --target chatgpt
 ```
 
 Extract the versioned ZIP into a fresh directory and run the Claude plugin validator against that directory. Confirm `.claude-plugin/plugin.json` is directly at the archive root. The ZIP omits marketplace indexes because it is one installable plugin. The source repository's marketplace indexes each contain one root-relative entry pointing to that plugin.
 
 The package checker validates generated Cursor metadata and paths. Claude's CLI is not a native Cursor runtime test.
+
+Both builds have versioned archives and checksums in separate `dist/shared/` and `dist/chatgpt/` directories. For the ChatGPT archive, check that the OpenAI compatibility manifest resolves all skill, MCP, logo, and onboarding paths, then import it through OpenAI's actual portal. Claude validation and the local export regression tests do not validate OpenAI's importer or authenticate its connection.
 
 ## Host checks
 

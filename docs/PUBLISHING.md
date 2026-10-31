@@ -8,6 +8,7 @@ Edit `plugin-source.json` for identity, version, publisher, listing links, and s
 python3 scripts/plugin.py sync
 python3 scripts/plugin.py check
 python3 scripts/plugin.py build
+python3 scripts/plugin.py build --target chatgpt
 ```
 
 Claude chat and Cowork discover `.mcp.json`; Cursor discovers `mcp.json`. Both are generated from the same HTTP endpoint definition. Skills and assets are shared regular files, not host-specific copies or symlinks.
@@ -55,6 +56,26 @@ The package has native Claude and Cursor manifests. This does not prove Grok Bot
 3. Run relevant local and host tests. Confirm CI passes on the pull request.
 4. Build from the exact reviewed commit. CI retains the ZIP and checksum as an artifact.
 5. Merge the reviewed update and follow each marketplace's version review process. Team refresh and public directory approval are separate operations. Do not promise an update is live merely because a commit was pushed.
+
+## ChatGPT and Codex
+
+Run `python3 scripts/plugin.py build --target chatgpt`. The independent ZIP in `dist/chatgpt/` contains `.codex-plugin/plugin.json`, `.mcp.json`, the shared skills and assets, the proprietary license, and export-specific documentation. It does not carry Claude/Cursor manifests, marketplace indexes, app references, or hooks. Configuration remains URL-only with OAuth client registration through DCR; no secrets are packaged.
+
+Edit the `openai` section of `plugin-source.json` for subtitle, long description, category, capabilities, starter prompts, branding colors, onboarding skill, and OAuth scopes. The exporter maps shared website, support, privacy, and terms URLs to OpenAI's field names. It rejects subtitles over 30 characters, invalid onboarding paths, and multiple servers; the current public flow connects one server per plugin.
+
+The public Agent Plugins MCP schema currently rejects the per-server OAuth extension described in OpenAI's documentation. This target therefore uses OpenAI's documented Codex compatibility layout, without claiming portable-schema conformance. It does not add a portable root manifest that could change Cursor's format selection.
+
+Before submission:
+
+1. Import this export in OpenAI's plugin portal as an MCP-enabled package. For the published Dealr.cloud plugin, upload a new version to the existing identity instead of creating a duplicate. A skills-only submission is not appropriate for these connected workflows.
+2. Verify imported metadata and saved OAuth settings, including DCR, scopes, and endpoint discovery. Confirm production support for OpenAI's current UserInfo and verified-email/workspace-domain requirements; a successful package build does not establish this.
+3. Complete any domain challenge without overwriting an existing plugin's challenge token. Use a permitted parent origin or ask support if there is a conflict.
+4. Test skills and tools with a dedicated sample account, resolve scans, and prepare exactly five positive and three negative review cases plus an accessible video walkthrough. Do not invent test results or recording URLs in package metadata.
+5. Enter reviewer credentials privately in the portal. Complete policy attestations and submit only when authorized. An upload, scan, review approval, and publication are distinct steps.
+
+Native OpenAI importer validation and authenticated runtime testing remain outstanding. This tooling produces a format-ready export, not a guarantee of public approval.
+
+References: https://developers.openai.com/plugins/build/plugins and https://developers.openai.com/plugins/deploy/submission
 
 ## Adapt for a new app
 

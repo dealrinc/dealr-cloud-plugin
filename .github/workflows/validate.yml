@@ -21,6 +21,7 @@ jobs:
         run: |
           python3 -m unittest discover -s tests -v
           python3 scripts/plugin.py build
+          python3 scripts/plugin.py build --target chatgpt
       - name: Install pinned Claude validator
         run: npm install --global @anthropic-ai/claude-code@2.1.311
       - name: Validate Claude plugin and marketplaces
@@ -33,7 +34,7 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           from zipfile import ZipFile
-          archives = list(Path('dist').glob('*.zip'))
+          archives = list(Path('dist/shared').glob('*.zip'))
           assert len(archives) == 1, 'Expected exactly one plugin archive'
           with ZipFile(archives[0]) as archive:
               archive.extractall('/tmp/dealr-plugin-upload')
@@ -43,6 +44,6 @@ jobs:
         with:
           name: plugin-bundle
           path: |
-            dist/*.zip
-            dist/SHA256SUMS
+            dist/**/*.zip
+            dist/**/SHA256SUMS
           if-no-files-found: error
