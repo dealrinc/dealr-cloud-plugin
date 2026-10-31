@@ -57,6 +57,29 @@ The package has native Claude and Cursor manifests. This does not prove Grok Bot
 4. Build from the exact reviewed commit. CI retains the ZIP and checksum as an artifact.
 5. Merge the reviewed update and follow each marketplace's version review process. Team refresh and public directory approval are separate operations. Do not promise an update is live merely because a commit was pushed.
 
+## Automatic GitHub delivery
+
+The `Publish versioned bundles` workflow runs on pushes to `main`. A merged version increase in `plugin-source.json` starts a delivery; the first merge introducing that file also qualifies. Unchanged versions skip delivery. Lower versions, existing tags for a new delivery, and commits not on `origin/main` are rejected.
+
+1. Raise the version, run `sync`, and update `openai.updateNotes` in a reviewed pull request. The first merge of this bundle will publish `v1.1.0` if that tag does not already exist.
+2. After merge, the workflow invokes the same validation/build workflow used on pull requests. Both ZIPs must pass their checks before the publishing job starts.
+3. A separate read/write publishing job downloads only that run's artifacts, verifies their checksums and identity/connection metadata against the checked-out commit, and prepares a combined checksum file and artifact manifest.
+4. The job creates a draft GitHub release targeted at the exact validated commit and uploads both ZIPs, `SHA256SUMS`, and `manifest.json`. Only after successful upload does it publish the draft and its version tag. It uses GitHub's built-in token; no Claude, Cursor, OpenAI, or reviewer credentials are needed.
+5. The release body links to each platform's handoff and states the remaining review/runtime requirements. No marketplace upload, attestations, OAuth grants, or public marketplace publication happen through this workflow.
+
+### Recovery and overwrites
+
+- If validation fails, fix the issue in a pull request, choose a fresh version if the failed attempt already created a tag, and merge it. A transient failure can be retried using GitHub's Re-run jobs on the original run.
+- If an upload or publication fails after a draft was created, the job leaves the draft unpublished. It refuses to overwrite an existing release on retry. Inspect the draft, then remove only that incomplete draft and any associated unneeded tag through GitHub's normal controls before rerunning the original workflow. Do not remove a published version to reuse its number.
+- If an existing tag blocks a new version, increment the package version. Existing artifacts are immutable from this workflow's perspective.
+- Branch review and permission enforcement come from the repository's rules. This workflow checks main ancestry and version progression; it does not independently prove that every commit received human review.
+
+### Platform-side setup
+
+- **Claude public directory:** configure the listing's tracked branch or tag and GitHub push webhook. Tracking `main` sees version commits; a fixed tag does not advance when CI creates another tag. Automatic publishing is subject to Anthropic's setting for the listing. This workflow does not change it.
+- **Cursor team marketplace:** enable GitHub Auto Refresh separately. Public marketplace updates require Cursor review. Cursor's public marketplace guidance also requires open-source plugins; confirm eligibility or an exception for the current proprietary package before publication. The workflow does not change licensing.
+- **ChatGPT:** use the app-named ZIP from the GitHub release to update the existing plugin in the portal, then complete the required scans/review/publication. Hosted MCP changes follow OpenAI's separate server scanning process.
+
 ## ChatGPT and Codex
 
 Run `python3 scripts/plugin.py build --target chatgpt`. The ZIP in `dist/chatgpt/` is named `app-6ab344f9b2e48191ac932d73268eda65-<version>.zip`, matching the existing package identity. It contains `.codex-plugin/plugin.json`, `.mcp.json`, shared skills and references, the original ChatGPT icons, the proprietary license, and export-specific documentation. It does not carry Claude/Cursor manifests, marketplace indexes, app references, or hooks.

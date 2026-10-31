@@ -106,6 +106,12 @@ Edit `plugin-source.json` for shared identity, version, listing links, and serve
 
 See [Testing](docs/TESTING.md) for authenticated checks and [Publishing](docs/PUBLISHING.md) for Claude, Cursor, Grok, version updates, and adapting the bundle for a new app. Package validation does not establish marketplace approval or an authenticated connection. Grok Bot ingestion still needs its own in-app test.
 
+## Automatic GitHub versions
+
+After this workflow is merged, a version bump merged to `main` automatically validates and builds both targets, creates the matching `v<version>` tag, and publishes a GitHub release with both ZIPs, combined checksums, a commit/artifact manifest, and platform handoff notes. Ordinary commits without a version bump skip publication. Existing version tags and published assets are never overwritten.
+
+This automates GitHub delivery. Claude repository sync must be configured in its developer portal; Cursor public updates still require review, and ChatGPT package updates still require upload and applicable review/publication steps. See [the release flow and recovery procedure](docs/PUBLISHING.md#automatic-github-delivery).
+
 ## License
 
 This package is proprietary; see [LICENSE](LICENSE). Dealr, Inc. retains the plugin and brand rights. A public repository does not grant an open-source license. Hosted service access remains governed by your existing Dealr agreement and terms of use.
